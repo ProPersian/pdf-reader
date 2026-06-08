@@ -1,0 +1,6 @@
+{
+  "name": "کتاب‌خوان",
+  "description": "برنامه پی‌دی‌اف خوان بسیار سبک، سریع و آفلاین با قابلیت دسته‌بندی کتاب‌ها، نشانه‌گذاری صفحات و ثبت پیشرفت مطالعه",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
