@@ -698,10 +698,10 @@ fun PdfPageRowItem(
                     }
                 )
             }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    if (scale > 1f) {
+            .pointerInput(scale) {
+                if (scale > 1.05f) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
                         val width = if (itemSize.width > 0) itemSize.width.toFloat() else 1080f
                         val height = if (itemSize.height > 0) itemSize.height.toFloat() else 1920f
                         val maxActiveX = (scale - 1f) * (width / 2f)
@@ -710,9 +710,9 @@ fun PdfPageRowItem(
                             x = (offset.x + pan.x).coerceIn(-maxActiveX, maxActiveX),
                             y = (offset.y + pan.y).coerceIn(-maxActiveY, maxActiveY)
                         )
-                    } else {
-                        offset = Offset.Zero
                     }
+                } else {
+                    offset = Offset.Zero
                 }
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),

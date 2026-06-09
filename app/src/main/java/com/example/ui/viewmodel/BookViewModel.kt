@@ -282,10 +282,15 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
         if (newName.isBlank() || category.name == newName) return
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // Update books using this category first
-                repository.updateBookCategories(category.name, newName)
-                // Rename the category itself
-                repository.renameCategory(category.id, newName)
+                val targetCategory = repository.getCategoryByName(newName)
+                if (targetCategory != null) {
+                    // Category with newName already exists! Let's merge them
+                    repository.updateBookCategories(category.name, newName)
+                    repository.deleteCategoryById(category.id)
+                } else {
+                    repository.updateBookCategories(category.name, newName)
+                    repository.renameCategory(category.id, newName)
+                }
             }
         }
     }
@@ -296,10 +301,16 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
                 val fallbackCategory = "سایر"
                 if (category.name == fallbackCategory) {
                     val alternative = dbCategories.value.firstOrNull { it.id != category.id }?.name ?: "سند"
-                    repository.insertCategory(Category(name = alternative))
+                    val existingAlternative = repository.getCategoryByName(alternative)
+                    if (existingAlternative == null) {
+                        repository.insertCategory(Category(name = alternative))
+                    }
                     repository.updateBookCategories(category.name, alternative)
                 } else {
-                    repository.insertCategory(Category(name = fallbackCategory))
+                    val existingFallback = repository.getCategoryByName(fallbackCategory)
+                    if (existingFallback == null) {
+                        repository.insertCategory(Category(name = fallbackCategory))
+                    }
                     repository.updateBookCategories(category.name, fallbackCategory)
                 }
                 repository.deleteCategoryById(category.id)
@@ -572,6 +583,100 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
                     }
                 } catch (e: Exception) {
                     Log.e("BookViewModel", "importPdf failed: ${e.message}")
+                }
+            }
+        }
+    }
+
+    fun changeBookCategory(book: PdfBook, newCategory: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val trimCat = newCategory.trim()
+                if (trimCat.isNotBlank()) {
+                    val existing = repository.getCategoryByName(trimCat)
+                    if (existing == null) {
+                        repository.insertCategory(Category(name = trimCat))
+                    }
+                    repository.updateBook(book.copy(category = trimCat))
+                }
+            }
+        }
+    }
+
+    data class SampleBookPreset(
+        val id: String,
+        val title: String,
+        val category: String,
+        val pages: Int,
+        val lines: List<String>
+    )
+
+    fun importSelectedSampleBooks(context: Context, presetsSelected: List<String>, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val presets = listOf(
+                    SampleBookPreset(
+                        id = "hafez",
+                        title = "غزلیات حافظ شیرازی",
+                        category = "شعر و ادبیات",
+                        pages = 3,
+                        lines = listOf(
+                            "صلاح کار کجا و من خراب کجا\nببین تفاوت ره از کجاست تا به کجا\nدلم ز صومعه بگرفت و خرقه سالوس\nکجاست دیر مغان و شراب ناب کجا",
+                            "اگر آن ترک شیرازی به دست آرد دل ما را\nبه خال هندویش بخشم سمرقند و بخارا را\nبده ساقی می باقی که در جنت نخواهی یافت\nکنار آب رکن آباد و گلگشت مصلا را",
+                            "به مژگان سیه کردی هزاران رخنه در دینم\nبیا کز چشم بیمارت هزاران درد برچینم\nالا ای پیر فرزانه مکن عیبم ز میخانه\nکه من در ترک پیمانه خراب از دور دیرینم"
+                        )
+                    ),
+                    SampleBookPreset(
+                        id = "prince",
+                        title = "داستان شازده کوچولو",
+                        category = "داستان و رمان",
+                        pages = 3,
+                        lines = listOf(
+                            "بزرگ‌ترها هرگز خودشان چیزی را نمی‌فهمند...\nو برای بچه‌ها هم خسته‌کننده است که همواره به آنها توضیح بدهند.\nشازده کوچولو گفت: زندگی در روی زمین چطور است؟\nروباه پاسخ داد: پر از شگفتی‌هاست اگر چشم دل باز کنی.",
+                            "اگر تو مرا اهلی کنی، هر دو به هم احتیاج خواهیم داشت.\nتو برای من در تمام دنیا یگانه خواهی شد\nو من نیز برای تو در تمام دنیا همتا نخواهم داشت.\nصدای پای تو برای من مانند موسیقی خواهد بود...",
+                            "ارزش گل تو به قدر عمری است که به پای آن صرف کرده‌ای.\nانسان‌ها این حقیقت را فراموش کرده‌اند\nاما تو نباید فراموش کنی. تو تا زنده‌ای نسبت به چیزی که\nاهلی کرده‌ای مسئولی. تو مسئول گل خود هستی..."
+                        )
+                    ),
+                    SampleBookPreset(
+                        id = "javascript",
+                        title = "راهنمای سریع جاوااسکریپت",
+                        category = "آموزشی و درسی",
+                        pages = 3,
+                        lines = listOf(
+                            "راهنمای مقدماتی برنامه‌نویسی جاوااسکریپت\nجاوااسکریپت زبانی قدرتمند، پویا و مفسری است.\nاز متغیرهای مدرن const و let به جای var استفاده کنید:\nconst maxLimit = 100;\nlet currentCount = 0;",
+                            "توابع پیکانی (Arrow Functions) در جاوااسکریپت:\nconst greetUser = (userName) => {\n   return 'سلام ' + userName + ' به برنامه خوش آمدید!';\n};\nاین مفهوم خوانایی کد شما را دوچندان می‌کند.",
+                            "مدیریت رویدادهای آسنکرون (Promises & Async/Await):\nasync function loadBookData() {\n   try {\n       const response = await fetch('/api/books');\n       const books = await response.json();\n       console.log(books);\n   } catch (error) {\n       console.error(\"خطا در دریافت اطلاعات\", error);\n   }\n}"
+                        )
+                    )
+                )
+
+                for (preset in presets) {
+                    if (presetsSelected.contains(preset.id)) {
+                        val catExist = repository.getCategoryByName(preset.category)
+                        if (catExist == null) {
+                            repository.insertCategory(Category(name = preset.category))
+                        }
+                        val exists = _dbBooks.value.any { it.title == preset.title }
+                        if (!exists) {
+                            try {
+                                val path = createSamplePdf(context, preset.title, preset.lines)
+                                repository.insertBook(
+                                    PdfBook(
+                                        title = preset.title,
+                                        filePath = path,
+                                        category = preset.category,
+                                        totalPages = preset.pages,
+                                        fileSize = File(path).length()
+                                    )
+                                )
+                            } catch (e: Exception) {
+                                Log.e("BookViewModel", "Failed to import preset: ${preset.title}", e)
+                            }
+                        }
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    onComplete()
                 }
             }
         }

@@ -61,6 +61,10 @@ fun HomeScreen(
     var showManageCategoriesDialog by remember { mutableStateOf(false) }
     var showManageNotesDialog by remember { mutableStateOf(false) }
 
+    var activeSubPage by remember { mutableStateOf("bookshelf") } // "bookshelf" or "notes"
+    val selectedSamplePresets = remember { mutableStateMapOf("hafez" to true, "prince" to true, "javascript" to false) }
+    var bookToChangeCategory by remember { mutableStateOf<com.example.data.model.PdfBook?>(null) }
+
     // State for book import form
     var bookTitleInput by remember { mutableStateOf("") }
     var bookCategorySelection by remember { mutableStateOf("سایر") }
@@ -81,7 +85,296 @@ fun HomeScreen(
         }
     }
 
-    Scaffold(
+    if (activeSubPage == "notes") {
+        var notesSearchQuery by remember { mutableStateOf("") }
+        var editingNoteId by remember { mutableStateOf<Long?>(null) }
+        var editingNoteText by remember { mutableStateOf("") }
+
+        val filteredNotes = remember(notes, notesSearchQuery) {
+            if (notesSearchQuery.isBlank()) {
+                notes
+            } else {
+                notes.filter { 
+                    it.content.contains(notesSearchQuery, ignoreCase = true) || 
+                    it.bookTitle.contains(notesSearchQuery, ignoreCase = true)
+                }
+            }
+        }
+
+        Scaffold(
+            modifier = modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+            containerColor = Color(0xFF0F172A),
+            topBar = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF0F172A))
+                ) {
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Back Button (aligned left in RTL)
+                            IconButton(
+                                onClick = { activeSubPage = "bookshelf" },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color(0xFF1E293B),
+                                    contentColor = Color(0xFF94A3B8)
+                                ),
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "بازگشت به کتابخانه",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            // Screen Title (aligned right in RTL)
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "دفترچه یادداشت‌های من",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 20.sp
+                                    ),
+                                    color = Color(0xFFF8FAFC)
+                                )
+                                Text(
+                                    text = "تمام نکات و یادداشت‌هایی که هنگام مطالعه ثبت کرده‌اید",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+                    }
+
+                    // Notes Search box with RTL support
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                        OutlinedTextField(
+                            value = notesSearchQuery,
+                            onValueChange = { notesSearchQuery = it },
+                            placeholder = { 
+                                Text(
+                                    "جستجو در یادداشت‌ها یا عنوان کتاب...", 
+                                    color = Color(0xFF64748B), 
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Right
+                                ) 
+                            },
+                            textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Right, color = Color.White),
+                            leadingIcon = { 
+                                Icon(
+                                    imageVector = Icons.Filled.Search, 
+                                    contentDescription = "جستجو", 
+                                    tint = Color(0xFF64748B) 
+                                ) 
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1E293B),
+                                unfocusedContainerColor = Color(0xFF1E293B),
+                                focusedBorderColor = Color(0xFF3B82F6),
+                                unfocusedBorderColor = Color(0xFF334155)
+                            ),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color(0xFF0F172A))
+            ) {
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                    if (filteredNotes.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Assignment,
+                                contentDescription = null,
+                                tint = Color(0xFF1E293B),
+                                modifier = Modifier.size(92.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = if (notesSearchQuery.isNotBlank()) "یادداشتی با این عبارت جستجو یافت نشد." else "هنوز هیچ یادداشتی ثبت نشده است.",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = if (notesSearchQuery.isNotBlank()) "کلمات دیگری را برای جستجو امتحان کنید." else "هنگام مطالعه کتاب‌ها، با فشردن آیکون یادداشت در پایین صفحه می‌توانید برای هر صفحه نکته یا یادداشت بنویسید.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF475569),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            filteredNotes.forEach { note ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                                    shape = RoundedCornerShape(14.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            // Delete and Edit actions on the left
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (editingNoteId == note.id) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            if (editingNoteText.isNotBlank()) {
+                                                                viewModel.updateNoteContent(note, editingNoteText)
+                                                                editingNoteId = null
+                                                            }
+                                                        },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Check, contentDescription = "تایید", tint = Color.Green, modifier = Modifier.size(20.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = { editingNoteId = null },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Close, contentDescription = "لغو", tint = Color.Red, modifier = Modifier.size(20.dp))
+                                                    }
+                                                } else {
+                                                    IconButton(
+                                                        onClick = {
+                                                            editingNoteId = note.id
+                                                            editingNoteText = note.content
+                                                        },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Edit, contentDescription = "ویرایش", tint = Color(0xFF60A5FA), modifier = Modifier.size(18.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            viewModel.deleteNoteById(note.id)
+                                                            Toast.makeText(context, "یادداشت با موفقیت حذف شد.", Toast.LENGTH_SHORT).show()
+                                                        },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color(0xFFF87171), modifier = Modifier.size(18.dp))
+                                                    }
+                                                }
+                                            }
+
+                                            // Book Link on the right
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        coroutineScope.launch {
+                                                            val targetBook = viewModel.getBookById(note.bookId)
+                                                            if (targetBook != null) {
+                                                                viewModel.openBookAtPage(context, targetBook, note.pageNumber - 1)
+                                                            } else {
+                                                                Toast.makeText(context, "کتاب این یادداشت یافت نشد.", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
+                                                    }
+                                                    .background(Color(0xFF0F172A))
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "${note.bookTitle} (صفحه ${formatPersianNumber(note.pageNumber)})",
+                                                    color = Color(0xFF60A5FA),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    textAlign = TextAlign.Right
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.Book,
+                                                    contentDescription = "کتاب",
+                                                    tint = Color(0xFF60A5FA),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        if (editingNoteId == note.id) {
+                                            OutlinedTextField(
+                                                value = editingNoteText,
+                                                onValueChange = { editingNoteText = it },
+                                                textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Right, color = Color.White),
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    unfocusedTextColor = Color.White,
+                                                    focusedTextColor = Color.White,
+                                                    focusedBorderColor = Color(0xFF3B82F6),
+                                                    unfocusedBorderColor = Color.Gray,
+                                                    focusedContainerColor = Color(0xFF0F172A),
+                                                    unfocusedContainerColor = Color(0xFF0F172A)
+                                                ),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = false,
+                                                maxLines = 4
+                                            )
+                                        } else {
+                                            Text(
+                                                text = note.content,
+                                                color = Color(0xFFE2E8F0),
+                                                fontSize = 14.sp,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 4.dp),
+                                                textAlign = TextAlign.Right
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(20.dp))
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        Scaffold(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
@@ -129,7 +422,7 @@ fun HomeScreen(
                         // NOTES BUTTON
                         IconButton(
                             onClick = {
-                                showManageNotesDialog = true
+                                activeSubPage = "notes"
                             },
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color(0xFF1E293B),
@@ -324,19 +617,20 @@ fun HomeScreen(
             }
 
             // Interactive sort order selector row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${books.size} کتاب پیدا شد",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF94A3B8)
-                )
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Rtl) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${formatPersianNumber(books.size)} کتاب پیدا شد",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF94A3B8)
+                    )
 
                 var showSortMenu by remember { mutableStateOf(false) }
                 val currentSortOption by viewModel.sortOption.collectAsState()
@@ -397,6 +691,7 @@ fun HomeScreen(
                     }
                 }
             }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -449,24 +744,189 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(28.dp))
 
                     if (searchQuery.isEmpty()) {
-                        // Action buttons to add book
-                        Button(
-                            onClick = {
-                                viewModel.prepopulateSampleBooksIfEmpty(context)
-                                Toast.makeText(context, "کتاب‌های نمونه ادبیات فارسی اضافه شدند!", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            shape = RoundedCornerShape(12.dp),
+                        // Action card with checklist to add books
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
+                                .padding(horizontal = 8.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
                         ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("بارگذاری کتاب‌های نمونه (دیوان حافظ و شازده کوچولو)", fontWeight = FontWeight.Bold)
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Text(
+                                        text = "بارگذاری کتاب‌های نمونه پیشنهادی",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color(0xFFF1F5F9),
+                                        textAlign = TextAlign.Right
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0xFFF59E0B)
+                                    )
+                                }
+                                
+                                Spacer(modifier = Modifier.height(6.dp))
+                                
+                                Text(
+                                    text = "کتاب‌های باکیفیت و استاندارد زیر را برای آشنایی با ابزارهای خوانش، تیک زده و اضافه کنید:",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF94A3B8),
+                                    textAlign = TextAlign.Right,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                
+                                Spacer(modifier = Modifier.height(14.dp))
+                                
+                                // Preset Item 1
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { selectedSamplePresets["hafez"] = !(selectedSamplePresets["hafez"] ?: false) }
+                                        .padding(vertical = 4.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "شعر و ادبیات (حافظ شیرازی)",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF60A5FA)
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "غزلیات حافظ شیرازی",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Checkbox(
+                                            checked = selectedSamplePresets["hafez"] ?: false,
+                                            onCheckedChange = { selectedSamplePresets["hafez"] = it },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = Color(0xFF3B82F6),
+                                                uncheckedColor = Color(0xFF475569)
+                                            )
+                                        )
+                                    }
+                                }
+
+                                // Preset Item 2
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { selectedSamplePresets["prince"] = !(selectedSamplePresets["prince"] ?: false) }
+                                        .padding(vertical = 4.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "داستان و رمان (به قلم اگزوپری)",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF34D399)
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "داستان شازده کوچولو",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Checkbox(
+                                            checked = selectedSamplePresets["prince"] ?: false,
+                                            onCheckedChange = { selectedSamplePresets["prince"] = it },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = Color(0xFF3B82F6),
+                                                uncheckedColor = Color(0xFF475569)
+                                            )
+                                        )
+                                    }
+                                }
+
+                                // Preset Item 3
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { selectedSamplePresets["javascript"] = !(selectedSamplePresets["javascript"] ?: false) }
+                                        .padding(vertical = 4.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "آموزشی و درسی",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFF59E0B)
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "راهنمای سریع جاوااسکریپت",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Checkbox(
+                                            checked = selectedSamplePresets["javascript"] ?: false,
+                                            onCheckedChange = { selectedSamplePresets["javascript"] = it },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = Color(0xFF3B82F6),
+                                                uncheckedColor = Color(0xFF475569)
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                var isImportingPreset by remember { mutableStateOf(false) }
+
+                                Button(
+                                    onClick = {
+                                        val selectedIds = selectedSamplePresets.filter { it.value }.map { it.key }
+                                        if (selectedIds.isEmpty()) {
+                                            Toast.makeText(context, "لطفاً حداقل یک کتاب را برای بارگذاری انتخاب کنید.", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            isImportingPreset = true
+                                            viewModel.importSelectedSampleBooks(context, selectedIds) {
+                                                isImportingPreset = false
+                                                Toast.makeText(context, "کتاب‌های انتخاب شده به قفسه کتابخانه شما اضافه شدند!", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    enabled = !isImportingPreset,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(45.dp)
+                                ) {
+                                    if (isImportingPreset) {
+                                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                         Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                         Spacer(modifier = Modifier.width(8.dp))
+                                         Text("بارگذاری کتاب‌های انتخاب شده", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                }
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         OutlinedButton(
                             onClick = {
@@ -506,7 +966,8 @@ fun HomeScreen(
                             onDelete = {
                                 viewModel.deleteBook(context, book)
                                 Toast.makeText(context, "کتاب '${book.title}' با موفقیت حذف شد.", Toast.LENGTH_SHORT).show()
-                            }
+                            },
+                            onChangeCategory = { bookToChangeCategory = book }
                         )
                     }
                 }
@@ -1050,6 +1511,140 @@ fun HomeScreen(
             }
         )
     }
+
+    // dialog: Change Book Category
+    if (bookToChangeCategory != null) {
+        val targetBook = bookToChangeCategory!!
+        var customCategoryName by remember { mutableStateOf("") }
+        var selectedCatName by remember { mutableStateOf(targetBook.category) }
+
+        AlertDialog(
+            onDismissRequest = { bookToChangeCategory = null },
+            title = {
+                Text(
+                    text = "تغییر دسته‌بندی کتاب",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFFF1F5F9),
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = Color(0xFF1E293B),
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "دسته‌بندی مورد نظر را برای کتاب '${targetBook.title}' انتخاب کنید یا یک دسته‌بندی جدید بسازید:",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8),
+                        textAlign = TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // List existing categories as radio-like clickable chips or rows
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 200.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        categories.forEach { category ->
+                            val isSelected = selectedCatName == category.name
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) Color(0xFF2563EB) else Color(0xFF0F172A))
+                                    .clickable { 
+                                        selectedCatName = category.name 
+                                        customCategoryName = ""
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Text(
+                                    text = category.name,
+                                    color = if (isSelected) Color.White else Color(0xFFE2E8F0),
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Textfield for new custom category
+                    Text(
+                        text = "یا یک دسته‌بندی جدید بنویسید:",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8),
+                        textAlign = TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = customCategoryName,
+                        onValueChange = { 
+                            customCategoryName = it 
+                            if (it.isNotBlank()) {
+                                selectedCatName = "" // clear choice to prefer typed
+                            }
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(textAlign = TextAlign.Right, color = Color.White),
+                        placeholder = { 
+                            Text(
+                                "نام دسته‌بندی جدید...", 
+                                color = Color.Gray, 
+                                fontSize = 13.sp,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Right
+                            ) 
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF3B82F6),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalCategory = if (customCategoryName.isNotBlank()) customCategoryName.trim() else selectedCatName
+                        if (finalCategory.isNotBlank()) {
+                            viewModel.changeBookCategory(targetBook, finalCategory)
+                            Toast.makeText(context, "دسته‌بندی کتاب ویرایش شد.", Toast.LENGTH_SHORT).show()
+                            bookToChangeCategory = null
+                        } else {
+                            Toast.makeText(context, "لطفاً یک دسته‌بندی را انتخاب یا تایپ کنید.", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                ) {
+                    Text("ویرایش", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { bookToChangeCategory = null }) {
+                    Text("انصراف", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+    }
 }
 
 // Widget represent pdf books on bookshelf
@@ -1058,7 +1653,8 @@ fun BookShelfItem(
     book: PdfBook,
     onOpen: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onChangeCategory: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -1167,6 +1763,22 @@ fun BookShelfItem(
                                 )
                             }
                         )
+                        if (onChangeCategory != null) {
+                            DropdownMenuItem(
+                                text = { Text("تغییر دسته‌بندی", color = Color.White) },
+                                onClick = {
+                                    showMenu = false
+                                    onChangeCategory()
+                                },
+                                leadingIcon = { 
+                                    Icon(
+                                        Icons.Default.Folder, 
+                                        contentDescription = null,
+                                        tint = Color(0xFF94A3B8)
+                                    ) 
+                                }
+                            )
+                        }
                         HorizontalDivider(color = Color(0xFF334155))
                         DropdownMenuItem(
                             text = { Text("حذف کتاب", color = MaterialTheme.colorScheme.error) },
@@ -1293,4 +1905,18 @@ fun formatFileSize(bytes: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB")
     val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.toDouble())).toInt()
     return String.format(Locale.getDefault(), "%.1f %s", bytes / Math.pow(1024.toDouble(), digitGroups.toDouble()), units[digitGroups])
+}
+
+fun formatPersianNumber(number: Int): String {
+    val persianDigits = listOf('۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹')
+    return number.toString().map { char ->
+        if (char.isDigit()) persianDigits[char.toString().toInt()] else char
+    }.joinToString("")
+}
+
+fun formatPersianNumber(str: String): String {
+    val persianDigits = listOf('۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹')
+    return str.map { char ->
+        if (char.isDigit()) persianDigits[char.toString().toInt()] else char
+    }.joinToString("")
 }

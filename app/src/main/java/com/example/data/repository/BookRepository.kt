@@ -48,6 +48,10 @@ class BookRepository(private val bookDao: BookDao) {
         return bookDao.insertCategory(category)
     }
 
+    suspend fun getCategoryByName(name: String): Category? {
+        return bookDao.getCategoryByName(name)
+    }
+
     suspend fun deleteCategoryByName(name: String) {
         bookDao.deleteCategoryByName(name)
     }
