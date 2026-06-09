@@ -81,6 +81,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import com.example.data.model.PdfBook
 import com.example.ui.viewmodel.BookViewModel
 
@@ -120,6 +129,7 @@ fun ReaderScreen(
     }
 
     var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
     var isFullScreen by remember { mutableStateOf(false) }
 
     Box(
@@ -216,11 +226,18 @@ fun ReaderScreen(
                                 )
                             }
 
-                            // Reset Zoom
-                            IconButton(onClick = { scale = if (scale == 1f) 1.6f else 1f }) {
+                            // Reset Zoom / Zoom toggle
+                            IconButton(onClick = { 
+                                if (scale > 1f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    scale = 1.6f
+                                }
+                            }) {
                                 Icon(
-                                    imageVector = Icons.Filled.ZoomIn,
-                                    contentDescription = "بزرگنمایی",
+                                    imageVector = if (scale > 1f) Icons.Default.ZoomOut else Icons.Default.ZoomIn,
+                                    contentDescription = if (scale > 1f) "کوچک‌نمایی" else "بزرگنمایی",
                                     tint = schemeText
                                 )
                             }
@@ -235,7 +252,58 @@ fun ReaderScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(8.dp)
-                    .clickable { isFullScreen = !isFullScreen }, // Tap empty space to enter fullscreen!
+                    .clickable { isFullScreen = !isFullScreen } // Tap empty space to enter fullscreen!
+                    .pointerInput(scale) {
+                        awaitEachGesture {
+                            var isMultiTouch = false
+                            var totalDragX = 0f
+                            var swipeTriggered = false
+                            
+                            val firstDown = awaitFirstDown(requireUnconsumed = false)
+                            
+                            do {
+                                val event = awaitPointerEvent()
+                                if (event.changes.size > 1) {
+                                    isMultiTouch = true
+                                }
+                                
+                                val panChange = event.calculatePan()
+                                val zoomChange = event.calculateZoom()
+                                
+                                if (scale > 1f || zoomChange != 1f) {
+                                    scale = (scale * zoomChange).coerceIn(1f, 4f)
+                                    if (scale > 1f) {
+                                        val maxActiveX = (scale - 1f) * (size.width / 2f)
+                                        val maxActiveY = (scale - 1f) * (size.height / 2f)
+                                        offset = Offset(
+                                            x = (offset.x + panChange.x).coerceIn(-maxActiveX, maxActiveX),
+                                            y = (offset.y + panChange.y).coerceIn(-maxActiveY, maxActiveY)
+                                        )
+                                    } else {
+                                        offset = Offset.Zero
+                                    }
+                                    event.changes.forEach { if (it.pressed) it.consume() }
+                                } else {
+                                    if (!isMultiTouch && !swipeTriggered && panChange.x != 0f) {
+                                        totalDragX += panChange.x
+                                        val threshold = 120f // pixels swipe distance
+                                        if (totalDragX > threshold) {
+                                            swipeTriggered = true
+                                            if (currentPage > 0) {
+                                                viewModel.changePage(currentPage - 1)
+                                            }
+                                        } else if (totalDragX < -threshold) {
+                                            swipeTriggered = true
+                                            if (currentPage + 1 < totalPages) {
+                                                viewModel.changePage(currentPage + 1)
+                                            }
+                                        }
+                                    }
+                                    event.changes.forEach { if (it.pressed) it.consume() }
+                                }
+                            } while (event.changes.any { it.pressed })
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (isPageLoading) {
@@ -259,7 +327,9 @@ fun ReaderScreen(
                         modifier = Modifier
                             .graphicsLayer(
                                 scaleX = scale,
-                                scaleY = scale
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y
                             )
                             .fillMaxSize(),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -315,85 +385,89 @@ fun ReaderScreen(
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Page label and navigation indicators
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            IconButton(
-                                onClick = { viewModel.changePage(currentPage + 1) },
-                                enabled = currentPage + 1 < totalPages,
-                                modifier = Modifier.testTag("reader_next_page")
+                            // Page label and navigation indicators
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "صفحه بعد",
-                                    tint = if (currentPage + 1 < totalPages) schemeText else schemeText.copy(alpha = 0.3f)
-                                )
-                            }
+                                // Previous Page button (Left Side) -> goes to page - 1
+                                IconButton(
+                                    onClick = { viewModel.changePage(currentPage - 1) },
+                                    enabled = currentPage > 0,
+                                    modifier = Modifier.testTag("reader_prev_page")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronLeft,
+                                        contentDescription = "صفحه قبل",
+                                        tint = if (currentPage > 0) schemeText else schemeText.copy(alpha = 0.3f)
+                                    )
+                                }
 
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "صفحه ${currentPage + 1} از $totalPages",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp
-                                    ),
-                                    color = schemeText,
-                                    textAlign = TextAlign.Center
-                                )
-                                // Bookmark text list if bookmarked
-                                if (viewModel.isPageBookmarked(currentPage)) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "★ نشانه‌گذاری شده",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = Color(0xFFD4AF37),
-                                            fontWeight = FontWeight.SemiBold
+                                        text = "صفحه ${currentPage + 1} از $totalPages",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 17.sp
                                         ),
-                                        modifier = Modifier.padding(top = 2.dp)
+                                        color = schemeText,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    // Bookmark text list if bookmarked
+                                    if (viewModel.isPageBookmarked(currentPage)) {
+                                        Text(
+                                            text = "★ نشانه‌گذاری شده",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = Color(0xFFD4AF37),
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                // Next Page button (Right Side) -> goes to page + 1
+                                IconButton(
+                                    onClick = { viewModel.changePage(currentPage + 1) },
+                                    enabled = currentPage + 1 < totalPages,
+                                    modifier = Modifier.testTag("reader_next_page")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = "صفحه بعد",
+                                        tint = if (currentPage + 1 < totalPages) schemeText else schemeText.copy(alpha = 0.3f)
                                     )
                                 }
                             }
 
-                            IconButton(
-                                onClick = { viewModel.changePage(currentPage - 1) },
-                                enabled = currentPage > 0,
-                                modifier = Modifier.testTag("reader_prev_page")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "صفحه قبل",
-                                    tint = if (currentPage > 0) schemeText else schemeText.copy(alpha = 0.3f)
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Fast scrubber Scroller
+                            if (totalPages > 1) {
+                                Slider(
+                                    value = currentPage.toFloat(),
+                                    onValueChange = { viewModel.changePage(it.toInt()) },
+                                    valueRange = 0f..(totalPages - 1).toFloat(),
+                                    steps = if (totalPages > 2) totalPages - 2 else 0,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = if (readingTheme == "Dark") Color.White else MaterialTheme.colorScheme.primary,
+                                        activeTrackColor = (if (readingTheme == "Dark") Color.White else MaterialTheme.colorScheme.primary).copy(alpha = 0.8f),
+                                        inactiveTrackColor = schemeText.copy(alpha = 0.2f)
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp)
+                                        .testTag("reader_scrubber")
                                 )
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Fast scrubber Scroller
-                        if (totalPages > 1) {
-                            Slider(
-                                value = currentPage.toFloat(),
-                                onValueChange = { viewModel.changePage(it.toInt()) },
-                                valueRange = 0f..(totalPages - 1).toFloat(),
-                                steps = if (totalPages > 2) totalPages - 2 else 0,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = if (readingTheme == "Dark") Color.White else MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = (if (readingTheme == "Dark") Color.White else MaterialTheme.colorScheme.primary).copy(alpha = 0.8f),
-                                    inactiveTrackColor = schemeText.copy(alpha = 0.2f)
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp)
-                                    .testTag("reader_scrubber")
-                            )
                         }
                     }
                 }

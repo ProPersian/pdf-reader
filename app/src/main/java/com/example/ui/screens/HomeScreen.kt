@@ -81,15 +81,15 @@ fun HomeScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding(),
-        containerColor = Color(0xFFF3F4F9),
+        containerColor = Color.White,
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF3F4F9))
+                    .background(Color.White)
                     .padding(bottom = 6.dp)
             ) {
-                // Professional Polish Header
+                // Simplified Minimal Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -121,8 +121,8 @@ fun HomeScreen(
                             showAddCategoryDialog = true
                         },
                         colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color(0xFFD3E3FD),
-                            contentColor = Color(0xFF001D35)
+                            containerColor = Color(0xFFF1F3F5),
+                            contentColor = Color(0xFF1B1B1F)
                         ),
                         modifier = Modifier
                             .size(44.dp)
@@ -136,7 +136,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Premium Search input card
+                // Simplified Search input capsule
                 TextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
@@ -171,9 +171,9 @@ fun HomeScreen(
                     },
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        disabledContainerColor = Color.White,
+                        focusedContainerColor = Color(0xFFF1F3F5),
+                        unfocusedContainerColor = Color(0xFFF1F3F5),
+                        disabledContainerColor = Color(0xFFF1F3F5),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent
@@ -217,7 +217,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF3F4F9))
+                .background(Color.White)
                 .padding(paddingValues)
         ) {
             // Horizontal sliding Categories filter Row
@@ -233,10 +233,10 @@ fun HomeScreen(
                 
                 Surface(
                     onClick = { viewModel.selectCategory("همه") },
-                    color = if (isAllSelected) Color(0xFFD3E3FD) else Color.White,
-                    contentColor = if (isAllSelected) Color(0xFF001D35) else Color(0xFF44474E),
-                    shape = RoundedCornerShape(16.dp),
-                    border = if (isAllSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC4C7CF)),
+                    color = if (isAllSelected) Color(0xFF1B1B1F) else Color(0xFFF1F3F5),
+                    contentColor = if (isAllSelected) Color.White else Color(0xFF44474E),
+                    shape = RoundedCornerShape(12.dp),
+                    border = null,
                     modifier = Modifier.padding(end = 8.dp)
                 ) {
                     Text(
@@ -252,10 +252,10 @@ fun HomeScreen(
                     
                     Surface(
                         onClick = { viewModel.selectCategory(category.name) },
-                        color = if (isSelected) Color(0xFFD3E3FD) else Color.White,
-                        contentColor = if (isSelected) Color(0xFF001D35) else Color(0xFF44474E),
-                        shape = RoundedCornerShape(16.dp),
-                        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFC4C7CF)),
+                        color = if (isSelected) Color(0xFF1B1B1F) else Color(0xFFF1F3F5),
+                        contentColor = if (isSelected) Color.White else Color(0xFF44474E),
+                        shape = RoundedCornerShape(12.dp),
+                        border = null,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Row(
@@ -663,12 +663,12 @@ fun BookShelfItem(
             .fillMaxWidth()
             .clickable { onOpen() }
             .testTag("book_card_${book.id}"),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = Color(0xFFF8F9FA)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE1E2EC))
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFECEFF1))
     ) {
         Column(
             modifier = Modifier
