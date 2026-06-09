@@ -47,6 +47,13 @@ import androidx.compose.material.icons.filled.NavigateNext
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -144,6 +151,11 @@ fun ReaderScreen(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
     var isFullScreen by remember { mutableStateOf(false) }
+    var showPageNoteDialog by remember { mutableStateOf(false) }
+    val notes by viewModel.allNotes.collectAsState()
+    val pageNote = remember(notes, book.id, currentPage) {
+        notes.find { it.bookId == book.id && it.pageNumber == (currentPage + 1) }
+    }
 
     Box(
         modifier = modifier
@@ -229,6 +241,15 @@ fun ReaderScreen(
                                     imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                                     contentDescription = "نشانه‌گذاری صفحه",
                                     tint = if (isBookmarked) Color(0xFFD4AF37) else schemeText
+                                )
+                            }
+
+                            // Page Note Button
+                            IconButton(onClick = { showPageNoteDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "یادداشت صفحه",
+                                    tint = if (pageNote != null) Color(0xFF3B82F6) else schemeText
                                 )
                             }
 
@@ -346,7 +367,7 @@ fun ReaderScreen(
                                 }
                             )
                         }
-                        .pointerInput(scale) {
+                        .pointerInput(Unit) {
                             awaitEachGesture {
                                 var isMultiTouch = false
                                 var totalDragX = 0f
@@ -364,15 +385,16 @@ fun ReaderScreen(
                                     val zoomChange = event.calculateZoom()
                                     
                                     if (scale > 1f || zoomChange != 1f) {
-                                        scale = (scale * zoomChange).coerceIn(1f, 4f)
+                                        val prevScale = scale
+                                        scale = (scale * zoomChange).coerceIn(1f, 5f)
                                         if (scale > 1f) {
                                             val width = if (viewportSize.width > 0) viewportSize.width.toFloat() else 1080f
                                             val height = if (viewportSize.height > 0) viewportSize.height.toFloat() else 1920f
                                             val maxActiveX = (scale - 1f) * (width / 2f)
                                             val maxActiveY = (scale - 1f) * (height / 2f)
                                             offset = Offset(
-                                                x = (offset.x + panChange.x * scale).coerceIn(-maxActiveX, maxActiveX),
-                                                y = (offset.y + panChange.y * scale).coerceIn(-maxActiveY, maxActiveY)
+                                                x = (offset.x + panChange.x).coerceIn(-maxActiveX, maxActiveX),
+                                                y = (offset.y + panChange.y).coerceIn(-maxActiveY, maxActiveY)
                                             )
                                         } else {
                                             offset = Offset.Zero
@@ -569,6 +591,73 @@ fun ReaderScreen(
                 }
             }
         }
+
+        if (showPageNoteDialog) {
+            var noteInput by remember(pageNote) { mutableStateOf(pageNote?.content ?: "") }
+            AlertDialog(
+                onDismissRequest = { showPageNoteDialog = false },
+                title = {
+                    Text(
+                        text = "یادداشت صفحه ${currentPage + 1}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = schemeText,
+                        textAlign = TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                containerColor = schemeCard,
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "یادداشت خود را برای این صفحه بنویسید:",
+                            fontSize = 13.sp,
+                            color = schemeText.copy(alpha = 0.7f),
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Right
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = noteInput,
+                            onValueChange = { noteInput = it },
+                            placeholder = { Text("مثلا: یادداشت من...", fontSize = 13.sp, color = Color.Gray) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedTextColor = schemeText,
+                                focusedTextColor = schemeText,
+                                focusedBorderColor = Color(0xFF3B82F6),
+                                unfocusedBorderColor = schemeText.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp),
+                            singleLine = false,
+                            maxLines = 6
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.saveNote(
+                                bookId = book.id,
+                                bookTitle = book.title,
+                                pageNumber = currentPage + 1,
+                                content = noteInput
+                            )
+                            showPageNoteDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                    ) {
+                        Text("ذخیره", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPageNoteDialog = false }) {
+                        Text("انصراف", color = schemeText.copy(alpha = 0.7f))
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -582,6 +671,10 @@ fun PdfPageRowItem(
     var pageBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var itemSize by remember { mutableStateOf(IntSize.Zero) }
+
     LaunchedEffect(pageIndex) {
         isLoading = true
         pageBitmap = viewModel.renderPageToBitmap(pageIndex)
@@ -591,13 +684,49 @@ fun PdfPageRowItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp)
+            .onSizeChanged { itemSize = it }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2.5f
+                        }
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    scale = (scale * zoom).coerceIn(1f, 5f)
+                    if (scale > 1f) {
+                        val width = if (itemSize.width > 0) itemSize.width.toFloat() else 1080f
+                        val height = if (itemSize.height > 0) itemSize.height.toFloat() else 1920f
+                        val maxActiveX = (scale - 1f) * (width / 2f)
+                        val maxActiveY = (scale - 1f) * (height / 2f)
+                        offset = Offset(
+                            x = (offset.x + pan.x).coerceIn(-maxActiveX, maxActiveX),
+                            y = (offset.y + pan.y).coerceIn(-maxActiveY, maxActiveY)
+                        )
+                    } else {
+                        offset = Offset.Zero
+                    }
+                }
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Box(
             modifier = Modifier
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                )
                 .fillMaxWidth()
                 .heightIn(min = 360.dp),
             contentAlignment = Alignment.Center

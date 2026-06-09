@@ -52,6 +52,9 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
     val dbCategories: StateFlow<List<Category>> = repository.allCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allNotes: StateFlow<List<com.example.data.model.BookNote>> = repository.allNotes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _dbBooks = repository.allBooks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -290,10 +293,47 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
     fun deleteCategoryAndRemapBooks(category: Category) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                // Move books in this category to "سایر" (Other) category so they aren't orphanized
-                repository.updateBookCategories(category.name, "سایر")
-                // Delete category
+                val fallbackCategory = "سایر"
+                if (category.name == fallbackCategory) {
+                    val alternative = dbCategories.value.firstOrNull { it.id != category.id }?.name ?: "سند"
+                    repository.insertCategory(Category(name = alternative))
+                    repository.updateBookCategories(category.name, alternative)
+                } else {
+                    repository.insertCategory(Category(name = fallbackCategory))
+                    repository.updateBookCategories(category.name, fallbackCategory)
+                }
                 repository.deleteCategoryById(category.id)
+            }
+        }
+    }
+
+    fun openBookAtPage(context: Context, book: PdfBook, pageIndex: Int) {
+        viewModelScope.launch {
+            closeRenderer() // clear previous opened book
+            
+            val updatedBook = book.copy(addedDate = System.currentTimeMillis(), lastPageRead = pageIndex)
+            _activeBook.value = updatedBook
+            _currentPage.value = pageIndex
+
+            withContext(Dispatchers.IO) {
+                try {
+                    repository.updateBook(updatedBook)
+                    val file = File(updatedBook.filePath)
+                    if (file.exists()) {
+                        val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                        currentFileDescriptor = fd
+                        val renderer = PdfRenderer(fd)
+                        currentRenderer = renderer
+                        _activeBookPages.value = renderer.pageCount
+                        
+                        // Load initial page bitmap
+                        loadPageBitmap(pageIndex)
+                    } else {
+                        Log.e("BookViewModel", "File does not exist: ${updatedBook.filePath}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("BookViewModel", "Failed to load PDF at pageIndex $pageIndex: ${e.message}")
+                }
             }
         }
     }
@@ -436,6 +476,58 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
         if (name.isNotBlank()) {
             viewModelScope.launch {
                 repository.insertCategory(Category(name = name))
+            }
+        }
+    }
+
+    // Notes management APIs
+    fun saveNote(bookId: Long, bookTitle: String, pageNumber: Int, content: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                if (content.isBlank()) {
+                    val existing = repository.getNoteForBookPage(bookId, pageNumber)
+                    if (existing != null) {
+                        repository.deleteNoteById(existing.id)
+                    }
+                } else {
+                    val existing = repository.getNoteForBookPage(bookId, pageNumber)
+                    if (existing != null) {
+                        repository.updateNote(existing.copy(content = content.trim(), timestamp = System.currentTimeMillis()))
+                    } else {
+                        repository.insertNote(
+                            com.example.data.model.BookNote(
+                                bookId = bookId,
+                                bookTitle = bookTitle,
+                                pageNumber = pageNumber,
+                                content = content.trim()
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun deleteNoteById(id: Long) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                repository.deleteNoteById(id)
+            }
+        }
+    }
+
+    suspend fun getBookById(id: Long): PdfBook? {
+        return repository.getBookById(id)
+    }
+
+    fun updateNoteContent(note: com.example.data.model.BookNote, newContent: String) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                if (newContent.isBlank()) {
+                    repository.deleteNoteById(note.id)
+                } else {
+                    repository.updateNote(note.copy(content = newContent.trim(), timestamp = System.currentTimeMillis()))
+                }
             }
         }
     }

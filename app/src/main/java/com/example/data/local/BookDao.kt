@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.data.model.Category
 import com.example.data.model.PdfBook
+import com.example.data.model.BookNote
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -54,4 +55,26 @@ interface BookDao {
 
     @Query("DELETE FROM categories WHERE id = :id")
     suspend fun deleteCategoryById(id: Long)
+
+    // Note Operations
+    @Query("SELECT * FROM book_notes ORDER BY timestamp DESC")
+    fun getAllNotes(): Flow<List<BookNote>>
+
+    @Query("SELECT * FROM book_notes WHERE bookId = :bookId ORDER BY pageNumber ASC, timestamp DESC")
+    fun getNotesForBook(bookId: Long): Flow<List<BookNote>>
+
+    @Query("SELECT * FROM book_notes WHERE bookId = :bookId AND pageNumber = :pageNumber LIMIT 1")
+    suspend fun getNoteForBookPage(bookId: Long, pageNumber: Int): BookNote?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertNote(note: BookNote): Long
+
+    @Update
+    suspend fun updateNote(note: BookNote)
+
+    @Query("DELETE FROM book_notes WHERE id = :id")
+    suspend fun deleteNoteById(id: Long)
+
+    @Query("DELETE FROM book_notes WHERE bookId = :bookId")
+    suspend fun deleteNotesByBookId(bookId: Long)
 }

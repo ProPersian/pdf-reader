@@ -38,6 +38,7 @@ import com.example.data.model.Category
 import com.example.data.model.PdfBook
 import com.example.ui.viewmodel.BookViewModel
 import com.example.ui.viewmodel.SortOption
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,13 +50,16 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val books by viewModel.filteredBooks.collectAsState()
     val categories by viewModel.dbCategories.collectAsState()
+    val notes by viewModel.allNotes.collectAsState()
 
     var showAddBookDialog by remember { mutableStateOf(false) }
     var showManageCategoriesDialog by remember { mutableStateOf(false) }
+    var showManageNotesDialog by remember { mutableStateOf(false) }
 
     // State for book import form
     var bookTitleInput by remember { mutableStateOf("") }
@@ -117,23 +121,50 @@ fun HomeScreen(
                             color = Color(0xFF94A3B8) // Muted metallic steel blue
                         )
                     }
-                    IconButton(
-                        onClick = {
-                            showManageCategoriesDialog = true
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color(0xFF1E293B),
-                            contentColor = Color(0xFF94A3B8)
-                        ),
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                    Row(
+                        modifier = Modifier.wrapContentSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.FolderOpen,
-                            contentDescription = "مدیریت دسته‌بندی‌ها",
-                            modifier = Modifier.size(22.dp)
-                        )
+                        // NOTES BUTTON
+                        IconButton(
+                            onClick = {
+                                showManageNotesDialog = true
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color(0xFF1E293B),
+                                contentColor = Color(0xFF3B82F6) // Accent highlight
+                            ),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Assignment,
+                                contentDescription = "یادداشت‌های من",
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // ACTIONS/CATEGORIES BUTTON
+                        IconButton(
+                            onClick = {
+                                showManageCategoriesDialog = true
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color(0xFF1E293B),
+                                contentColor = Color(0xFF94A3B8)
+                            ),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FolderOpen,
+                                contentDescription = "مدیریت دسته‌بندی‌ها",
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
 
@@ -525,9 +556,7 @@ fun HomeScreen(
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val defaultCategories = listOf("شعر و ادبیات", "داستان و رمان", "آموزشی و درسی", "سایر")
                         categories.forEach { category ->
-                            val isDefault = category.name in defaultCategories
                             val isEditing = editingCategoryId == category.id
 
                             Card(
@@ -560,7 +589,7 @@ fun HomeScreen(
                                         )
                                         IconButton(
                                             onClick = {
-                                                if (editingCategoryName.isNotBlank() && editingCategoryName.trim() !in defaultCategories) {
+                                                if (editingCategoryName.isNotBlank()) {
                                                     viewModel.renameCategoryAndRemapBooks(category, editingCategoryName.trim())
                                                     editingCategoryId = null
                                                     Toast.makeText(context, "نام دسته‌بندی با موفقیت تغییر کرد.", Toast.LENGTH_SHORT).show()
@@ -574,7 +603,7 @@ fun HomeScreen(
                                         }
                                     } else {
                                         Text(
-                                            text = category.name + (if (isDefault) " (پیش‌فرض)" else ""),
+                                            text = category.name,
                                             color = Color.White,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
@@ -582,26 +611,24 @@ fun HomeScreen(
                                             textAlign = TextAlign.Right
                                         )
 
-                                        if (!isDefault) {
-                                            // Edit Button
-                                            IconButton(
-                                                onClick = {
-                                                    editingCategoryId = category.id
-                                                    editingCategoryName = category.name
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.Edit, contentDescription = "ویرایش نام", tint = Color(0xFF60A5FA))
+                                        // Edit Button
+                                        IconButton(
+                                            onClick = {
+                                                editingCategoryId = category.id
+                                                editingCategoryName = category.name
                                             }
+                                        ) {
+                                            Icon(Icons.Default.Edit, contentDescription = "ویرایش نام", tint = Color(0xFF60A5FA))
+                                        }
 
-                                            // Delete Button
-                                            IconButton(
-                                                onClick = {
-                                                    viewModel.deleteCategoryAndRemapBooks(category)
-                                                    Toast.makeText(context, "دسته‌بندی ${category.name} حذف شد.", Toast.LENGTH_SHORT).show()
-                                                }
-                                            ) {
-                                                Icon(Icons.Default.Delete, contentDescription = "حذف دسته‌بندی", tint = Color(0xFFF87171))
+                                        // Delete Button
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.deleteCategoryAndRemapBooks(category)
+                                                Toast.makeText(context, "دسته‌بندی ${category.name} حذف شد.", Toast.LENGTH_SHORT).show()
                                             }
+                                        ) {
+                                            Icon(Icons.Default.Delete, contentDescription = "حذف دسته‌بندی", tint = Color(0xFFF87171))
                                         }
                                     }
                                 }
@@ -654,6 +681,197 @@ fun HomeScreen(
             dismissButton = {
                 TextButton(
                     onClick = { showManageCategoriesDialog = false }
+                ) {
+                    Text("بستن", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
+    // dialog: Manage Notes (دفترچه یادداشت)
+    if (showManageNotesDialog) {
+        var editingNoteId by remember { mutableStateOf<Long?>(null) }
+        var editingNoteText by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showManageNotesDialog = false },
+            title = {
+                Text(
+                    text = "دفترچه یادداشت‌های من",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFFF1F5F9),
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = Color(0xFF1E293B), // Premium Slate Dark Blue background
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                ) {
+                    Text(
+                        text = "لیست تمام یادداشت‌های شما در کتابخانه. برای رفتن مستقیم به صفحه هر یادداشت، روی عنوان کتاب کلیک کنید.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8),
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Right
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (notes.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "هنوز یادداشتی ثبت نشده است. هنگام مطالعه کتاب‌ها، می‌توانید برای هر صفحه نکته یا یادداشت بنویسید.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            notes.forEach { note ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            // Jump to book page button
+                                            Row(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clickable {
+                                                        coroutineScope.launch {
+                                                            val targetBook = viewModel.getBookById(note.bookId)
+                                                            if (targetBook != null) {
+                                                                viewModel.openBookAtPage(context, targetBook, note.pageNumber - 1)
+                                                                showManageNotesDialog = false
+                                                            } else {
+                                                                Toast.makeText(context, "کتاب این یادداشت یافت نشد.", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
+                                                    },
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Book,
+                                                    contentDescription = "کتاب",
+                                                    tint = Color(0xFF60A5FA),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "${note.bookTitle} (صفحه ${note.pageNumber})",
+                                                    color = Color(0xFF60A5FA),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    textAlign = TextAlign.Right
+                                                )
+                                            }
+
+                                            // Actions
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (editingNoteId == note.id) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            if (editingNoteText.isNotBlank()) {
+                                                                viewModel.updateNoteContent(note, editingNoteText)
+                                                                editingNoteId = null
+                                                            }
+                                                        },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Check, contentDescription = "تایید", tint = Color.Green, modifier = Modifier.size(18.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = { editingNoteId = null },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Close, contentDescription = "لغو", tint = Color.Red, modifier = Modifier.size(18.dp))
+                                                    }
+                                                } else {
+                                                    IconButton(
+                                                        onClick = {
+                                                            editingNoteId = note.id
+                                                            editingNoteText = note.content
+                                                        },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Edit, contentDescription = "ویرایش", tint = Color(0xFF60A5FA), modifier = Modifier.size(18.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            viewModel.deleteNoteById(note.id)
+                                                            Toast.makeText(context, "یادداشت با موفقیت حذف شد.", Toast.LENGTH_SHORT).show()
+                                                        },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color(0xFFF87171), modifier = Modifier.size(18.dp))
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        if (editingNoteId == note.id) {
+                                            OutlinedTextField(
+                                                value = editingNoteText,
+                                                onValueChange = { editingNoteText = it },
+                                                colors = OutlinedTextFieldDefaults.colors(
+                                                    unfocusedTextColor = Color.White,
+                                                    focusedTextColor = Color.White,
+                                                    focusedBorderColor = Color(0xFF3B82F6),
+                                                    unfocusedBorderColor = Color.Gray
+                                                ),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                singleLine = false,
+                                                maxLines = 4
+                                            )
+                                        } else {
+                                            Text(
+                                                text = note.content,
+                                                color = Color.White,
+                                                fontSize = 14.sp,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 4.dp),
+                                                textAlign = TextAlign.Right
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { showManageNotesDialog = false }
                 ) {
                     Text("بستن", color = Color(0xFF94A3B8))
                 }
