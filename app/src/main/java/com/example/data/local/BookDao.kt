@@ -45,4 +45,13 @@ interface BookDao {
 
     @Query("DELETE FROM categories WHERE name = :name")
     suspend fun deleteCategoryByName(name: String)
+
+    @Query("UPDATE pdf_books SET category = :newCategory WHERE category = :oldCategory")
+    suspend fun updateBookCategories(oldCategory: String, newCategory: String)
+
+    @Query("UPDATE categories SET name = :newName WHERE id = :id")
+    suspend fun renameCategory(id: Long, newName: String)
+
+    @Query("DELETE FROM categories WHERE id = :id")
+    suspend fun deleteCategoryById(id: Long)
 }

@@ -48,4 +48,16 @@ class BookRepository(private val bookDao: BookDao) {
     suspend fun deleteCategoryByName(name: String) {
         bookDao.deleteCategoryByName(name)
     }
+
+    suspend fun updateBookCategories(oldCategory: String, newCategory: String) {
+        bookDao.updateBookCategories(oldCategory, newCategory)
+    }
+
+    suspend fun renameCategory(id: Long, newName: String) {
+        bookDao.renameCategory(id, newName)
+    }
+
+    suspend fun deleteCategoryById(id: Long) {
+        bookDao.deleteCategoryById(id)
+    }
 }

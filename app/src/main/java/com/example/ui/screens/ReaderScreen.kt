@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -90,6 +91,16 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.ViewStream
 import com.example.data.model.PdfBook
 import com.example.ui.viewmodel.BookViewModel
 
@@ -106,6 +117,7 @@ fun ReaderScreen(
     val pageBitmap by viewModel.currentPageBitmap.collectAsState()
     val isPageLoading by viewModel.isPageLoading.collectAsState()
     val readingTheme by viewModel.readingTheme.collectAsState()
+    val isVerticalLayout by viewModel.isVerticalLayout.collectAsState()
 
     val book = activeBook ?: return
 
@@ -130,6 +142,7 @@ fun ReaderScreen(
 
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var viewportSize by remember { mutableStateOf(IntSize.Zero) }
     var isFullScreen by remember { mutableStateOf(false) }
 
     Box(
@@ -196,6 +209,19 @@ fun ReaderScreen(
 
                         // Right buttons: View options
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Toggle reading layout (Continuous Scroll / Page-by-Page)
+                            IconButton(onClick = { 
+                                viewModel.setVerticalLayout(!isVerticalLayout) 
+                                scale = 1f
+                                offset = Offset.Zero
+                            }) {
+                                Icon(
+                                    imageVector = if (isVerticalLayout) Icons.Default.MenuBook else Icons.Default.SwapVert,
+                                    contentDescription = "تغییر حالت نمایش",
+                                    tint = schemeText
+                                )
+                            }
+
                             // Bookmark this page
                             IconButton(onClick = { viewModel.toggleBookmark() }) {
                                 val isBookmarked = viewModel.isPageBookmarked(currentPage)
@@ -247,129 +273,199 @@ fun ReaderScreen(
             }
 
             // PDF Render Area Viewport
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .clickable { isFullScreen = !isFullScreen } // Tap empty space to enter fullscreen!
-                    .pointerInput(scale) {
-                        awaitEachGesture {
-                            var isMultiTouch = false
-                            var totalDragX = 0f
-                            var swipeTriggered = false
-                            
-                            val firstDown = awaitFirstDown(requireUnconsumed = false)
-                            
-                            do {
-                                val event = awaitPointerEvent()
-                                if (event.changes.size > 1) {
-                                    isMultiTouch = true
-                                }
-                                
-                                val panChange = event.calculatePan()
-                                val zoomChange = event.calculateZoom()
-                                
-                                if (scale > 1f || zoomChange != 1f) {
-                                    scale = (scale * zoomChange).coerceIn(1f, 4f)
-                                    if (scale > 1f) {
-                                        val maxActiveX = (scale - 1f) * (size.width / 2f)
-                                        val maxActiveY = (scale - 1f) * (size.height / 2f)
-                                        offset = Offset(
-                                            x = (offset.x + panChange.x).coerceIn(-maxActiveX, maxActiveX),
-                                            y = (offset.y + panChange.y).coerceIn(-maxActiveY, maxActiveY)
-                                        )
-                                    } else {
-                                        offset = Offset.Zero
-                                    }
-                                    event.changes.forEach { if (it.pressed) it.consume() }
-                                } else {
-                                    if (!isMultiTouch && !swipeTriggered && panChange.x != 0f) {
-                                        totalDragX += panChange.x
-                                        val threshold = 120f // pixels swipe distance
-                                        if (totalDragX > threshold) {
-                                            swipeTriggered = true
-                                            if (currentPage > 0) {
-                                                viewModel.changePage(currentPage - 1)
-                                            }
-                                        } else if (totalDragX < -threshold) {
-                                            swipeTriggered = true
-                                            if (currentPage + 1 < totalPages) {
-                                                viewModel.changePage(currentPage + 1)
-                                            }
-                                        }
-                                    }
-                                    event.changes.forEach { if (it.pressed) it.consume() }
-                                }
-                            } while (event.changes.any { it.pressed })
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isPageLoading) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = if (readingTheme == "Dark") Color.White else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "درحال آماده‌سازی صفحه...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = schemeText.copy(alpha = 0.8f)
-                        )
+            if (isVerticalLayout) {
+                val listState = rememberLazyListState(initialFirstVisibleItemIndex = currentPage)
+                val visibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+                
+                LaunchedEffect(visibleItemIndex) {
+                    if (visibleItemIndex in 0 until totalPages && visibleItemIndex != currentPage) {
+                        viewModel.changePage(visibleItemIndex)
                     }
-                } else if (pageBitmap != null) {
-                    Card(
-                        modifier = Modifier
-                            .graphicsLayer(
-                                scaleX = scale,
-                                scaleY = scale,
-                                translationX = offset.x,
-                                translationY = offset.y
-                            )
-                            .fillMaxSize(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        shape = RoundedCornerShape(8.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Image(
-                            bitmap = pageBitmap!!.asImageBitmap(),
-                            contentDescription = "صفحه پی‌دی‌اف ${currentPage + 1}",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(2.dp)
-                                .clip(RoundedCornerShape(6.dp)),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
-                } else {
-                    Text(
-                        text = "خطا در رندر این صفحه از کتاب PDF",
-                        color = Color.Red,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(16.dp)
-                    )
                 }
 
-                // Full screen exit indicator overlay
-                if (isFullScreen) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 16.dp)
-                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(schemeBackground)
+                        .clickable { isFullScreen = !isFullScreen }
+                        .onSizeChanged { viewportSize = it },
+                    contentAlignment = Alignment.Center
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 10.dp, bottom = 100.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        items(totalPages) { pageIndex ->
+                            PdfPageRowItem(
+                                pageIndex = pageIndex,
+                                viewModel = viewModel,
+                                schemeCard = schemeCard,
+                                isBookmarked = viewModel.isPageBookmarked(pageIndex)
+                            )
+                        }
+                    }
+
+                    // Full screen continuous exit overlay
+                    if (isFullScreen) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "نمایش پیوسته  |  جهت بازگشت لمس کنید",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .onSizeChanged { viewportSize = it }
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { isFullScreen = !isFullScreen },
+                                onDoubleTap = {
+                                    if (scale > 1f) {
+                                        scale = 1f
+                                        offset = Offset.Zero
+                                    } else {
+                                        scale = 2.5f
+                                    }
+                                }
+                            )
+                        }
+                        .pointerInput(scale) {
+                            awaitEachGesture {
+                                var isMultiTouch = false
+                                var totalDragX = 0f
+                                var swipeTriggered = false
+                                
+                                val firstDown = awaitFirstDown(requireUnconsumed = false)
+                                
+                                do {
+                                    val event = awaitPointerEvent()
+                                    if (event.changes.size > 1) {
+                                        isMultiTouch = true
+                                    }
+                                    
+                                    val panChange = event.calculatePan()
+                                    val zoomChange = event.calculateZoom()
+                                    
+                                    if (scale > 1f || zoomChange != 1f) {
+                                        scale = (scale * zoomChange).coerceIn(1f, 4f)
+                                        if (scale > 1f) {
+                                            val width = if (viewportSize.width > 0) viewportSize.width.toFloat() else 1080f
+                                            val height = if (viewportSize.height > 0) viewportSize.height.toFloat() else 1920f
+                                            val maxActiveX = (scale - 1f) * (width / 2f)
+                                            val maxActiveY = (scale - 1f) * (height / 2f)
+                                            offset = Offset(
+                                                x = (offset.x + panChange.x * scale).coerceIn(-maxActiveX, maxActiveX),
+                                                y = (offset.y + panChange.y * scale).coerceIn(-maxActiveY, maxActiveY)
+                                            )
+                                        } else {
+                                            offset = Offset.Zero
+                                        }
+                                        event.changes.forEach { if (it.pressed) it.consume() }
+                                    } else {
+                                        if (!isMultiTouch && !swipeTriggered && panChange.x != 0f) {
+                                            totalDragX += panChange.x
+                                            val threshold = 120f // pixels swipe distance
+                                            if (totalDragX > threshold) {
+                                                swipeTriggered = true
+                                                if (currentPage > 0) {
+                                                    viewModel.changePage(currentPage - 1)
+                                                }
+                                            } else if (totalDragX < -threshold) {
+                                                swipeTriggered = true
+                                                if (currentPage + 1 < totalPages) {
+                                                    viewModel.changePage(currentPage + 1)
+                                                }
+                                            }
+                                        }
+                                        event.changes.forEach { if (it.pressed) it.consume() }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isPageLoading) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = if (readingTheme == "Dark") Color.White else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "درحال آماده‌سازی صفحه...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = schemeText.copy(alpha = 0.8f)
+                            )
+                        }
+                    } else if (pageBitmap != null) {
+                        Card(
+                            modifier = Modifier
+                                .graphicsLayer(
+                                    scaleX = scale,
+                                    scaleY = scale,
+                                    translationX = offset.x,
+                                    translationY = offset.y
+                                )
+                                .fillMaxSize(),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Image(
+                                bitmap = pageBitmap!!.asImageBitmap(),
+                                contentDescription = "صفحه پی‌دی‌اف ${currentPage + 1}",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(2.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    } else {
                         Text(
-                            text = "حالت تمام‌صفحه  |  جهت بازگشت لمس کنید",
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            text = "خطا در رندر این صفحه از کتاب PDF",
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(16.dp)
                         )
+                    }
+
+                    // Full screen exit indicator overlay
+                    if (isFullScreen) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 16.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "حالت تمام‌صفحه  |  جهت بازگشت لمس کنید",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -471,6 +567,63 @@ fun ReaderScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun PdfPageRowItem(
+    pageIndex: Int,
+    viewModel: BookViewModel,
+    schemeCard: Color,
+    isBookmarked: Boolean
+) {
+    var pageBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(pageIndex) {
+        isLoading = true
+        pageBitmap = viewModel.renderPageToBitmap(pageIndex)
+        isLoading = false
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 360.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else if (pageBitmap != null) {
+                Image(
+                    bitmap = pageBitmap!!.asImageBitmap(),
+                    contentDescription = "صفحه ${pageIndex + 1}",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.FillWidth
+                )
+            } else {
+                Text(
+                    text = "خطا در بارگذاری صفحه",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         }
     }

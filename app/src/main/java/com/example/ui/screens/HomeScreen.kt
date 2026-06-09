@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.Category
 import com.example.data.model.PdfBook
 import com.example.ui.viewmodel.BookViewModel
+import com.example.ui.viewmodel.SortOption
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -54,7 +55,7 @@ fun HomeScreen(
     val categories by viewModel.dbCategories.collectAsState()
 
     var showAddBookDialog by remember { mutableStateOf(false) }
-    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var showManageCategoriesDialog by remember { mutableStateOf(false) }
 
     // State for book import form
     var bookTitleInput by remember { mutableStateOf("") }
@@ -81,15 +82,15 @@ fun HomeScreen(
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding(),
-        containerColor = Color.White,
+        containerColor = Color(0xFF0F172A), // Premium Slate Dark Blue background
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
+                    .background(Color(0xFF0F172A))
                     .padding(bottom = 6.dp)
             ) {
-                // Simplified Minimal Header
+                // Simplified Minimal Header styled for Dark Blue premium
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -105,7 +106,7 @@ fun HomeScreen(
                                 fontSize = 24.sp,
                                 letterSpacing = (-0.5).sp
                             ),
-                            color = Color(0xFF1B1B1F)
+                            color = Color(0xFFF8FAFC) // Silver White text
                         )
                         Text(
                             text = "مطالعه راحت، سبک و سازماندهی شده",
@@ -113,24 +114,24 @@ fun HomeScreen(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium
                             ),
-                            color = Color(0xFF74777F)
+                            color = Color(0xFF94A3B8) // Muted metallic steel blue
                         )
                     }
                     IconButton(
                         onClick = {
-                            showAddCategoryDialog = true
+                            showManageCategoriesDialog = true
                         },
                         colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color(0xFFF1F3F5),
-                            contentColor = Color(0xFF1B1B1F)
+                            containerColor = Color(0xFF1E293B),
+                            contentColor = Color(0xFF94A3B8)
                         ),
                         modifier = Modifier
                             .size(44.dp)
                             .clip(RoundedCornerShape(12.dp))
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.CreateNewFolder,
-                            contentDescription = "افزودن دسته‌بندی جدید",
+                            imageVector = Icons.Filled.FolderOpen,
+                            contentDescription = "مدیریت دسته‌بندی‌ها",
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -148,14 +149,14 @@ fun HomeScreen(
                         Text(
                             "جستجو در بین کتاب‌ها...", 
                             fontSize = 14.sp,
-                            color = Color(0xFF74777F)
+                            color = Color(0xFF94A3B8).copy(alpha = 0.8f)
                         ) 
                     },
                     leadingIcon = { 
                         Icon(
                             Icons.Default.Search, 
                             contentDescription = "جستجو",
-                            tint = Color(0xFF1B1B1F)
+                            tint = Color(0xFF94A3B8)
                         ) 
                     },
                     trailingIcon = {
@@ -164,16 +165,18 @@ fun HomeScreen(
                                 Icon(
                                     Icons.Default.Clear, 
                                     contentDescription = "پاک کردن",
-                                    tint = Color(0xFF1B1B1F)
+                                    tint = Color(0xFFF8FAFC)
                                 )
                             }
                         }
                     },
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF1F3F5),
-                        unfocusedContainerColor = Color(0xFFF1F3F5),
-                        disabledContainerColor = Color(0xFFF1F3F5),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = Color(0xFF1E293B),
+                        unfocusedContainerColor = Color(0xFF1E293B),
+                        disabledContainerColor = Color(0xFF1E293B),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent
@@ -217,7 +220,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
+                .background(Color(0xFF0F172A))
                 .padding(paddingValues)
         ) {
             // Horizontal sliding Categories filter Row
@@ -233,8 +236,8 @@ fun HomeScreen(
                 
                 Surface(
                     onClick = { viewModel.selectCategory("همه") },
-                    color = if (isAllSelected) Color(0xFF1B1B1F) else Color(0xFFF1F3F5),
-                    contentColor = if (isAllSelected) Color.White else Color(0xFF44474E),
+                    color = if (isAllSelected) Color(0xFF2563EB) else Color(0xFF1E293B),
+                    contentColor = if (isAllSelected) Color.White else Color(0xFF94A3B8),
                     shape = RoundedCornerShape(12.dp),
                     border = null,
                     modifier = Modifier.padding(end = 8.dp)
@@ -242,7 +245,24 @@ fun HomeScreen(
                     Text(
                         text = "همه",
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                    )
+                }
+
+                // Virtual premium "★ علاقه‌مندی‌ها" category chip
+                val isFavSelected = selectedCategory == "★ علاقه‌مندی‌ها"
+                Surface(
+                    onClick = { viewModel.selectCategory("★ علاقه‌مندی‌ها") },
+                    color = if (isFavSelected) Color(0xFF3B82F6) else Color(0xFF1E293B),
+                    contentColor = if (isFavSelected) Color.White else Color(0xFF94A3B8),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = "★ علاقه‌مندی‌ها",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
                     )
                 }
@@ -252,8 +272,8 @@ fun HomeScreen(
                     
                     Surface(
                         onClick = { viewModel.selectCategory(category.name) },
-                        color = if (isSelected) Color(0xFF1B1B1F) else Color(0xFFF1F3F5),
-                        contentColor = if (isSelected) Color.White else Color(0xFF44474E),
+                        color = if (isSelected) Color(0xFF2563EB) else Color(0xFF1E293B),
+                        contentColor = if (isSelected) Color.White else Color(0xFF94A3B8),
                         shape = RoundedCornerShape(12.dp),
                         border = null,
                         modifier = Modifier.padding(end = 8.dp)
@@ -265,32 +285,89 @@ fun HomeScreen(
                             Text(
                                 text = category.name,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
-                            
-                            // Standard default system categories cannot be deleted, custom can
-                            val defaultCategories = listOf("شعر و ادبیات", "داستان و رمان", "آموزشی و درسی", "سایر")
-                            if (category.name !in defaultCategories) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "حذف دسته‌بندی",
-                                    tint = if (isSelected) Color(0xFF001D35) else Color(0xFF74777F),
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable {
-                                            viewModel.deleteCategory(category.name)
-                                            if (selectedCategory == category.name) {
-                                                viewModel.selectCategory("همه")
-                                            }
-                                            Toast.makeText(context, "دسته‌بندی ${category.name} حذف شد.", Toast.LENGTH_SHORT).show()
-                                        }
-                                )
-                            }
                         }
                     }
                 }
             }
+
+            // Interactive sort order selector row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${books.size} کتاب پیدا شد",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF94A3B8)
+                )
+
+                var showSortMenu by remember { mutableStateOf(false) }
+                val currentSortOption by viewModel.sortOption.collectAsState()
+                
+                Box {
+                    Surface(
+                        onClick = { showSortMenu = true },
+                        color = Color(0xFF1E293B),
+                        contentColor = Color(0xFFF1F5F9),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Sort,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color(0xFF3B82F6)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "ترتیب: ${currentSortOption.displayName}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false },
+                        modifier = Modifier.background(Color(0xFF1E293B))
+                    ) {
+                        SortOption.values().forEach { option ->
+                            DropdownMenuItem(
+                                text = { 
+                                    Text(
+                                        text = option.displayName, 
+                                        color = if (currentSortOption == option) Color(0xFF3B82F6) else Color(0xFFF1F5F9),
+                                        fontWeight = if (currentSortOption == option) FontWeight.Bold else FontWeight.Medium
+                                    ) 
+                                },
+                                onClick = {
+                                    viewModel.setSortOption(option)
+                                    showSortMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // PDF Book shelf Grid
             if (books.isEmpty()) {
@@ -406,55 +483,179 @@ fun HomeScreen(
         }
     }
 
-    // dialog: Add Custom Category
-    if (showAddCategoryDialog) {
+    // dialog: Manage Categories
+    if (showManageCategoriesDialog) {
         var categoryNameInput by remember { mutableStateOf("") }
+        var editingCategoryId by remember { mutableStateOf<Long?>(null) }
+        var editingCategoryName by remember { mutableStateOf("") }
+
         AlertDialog(
-            onDismissRequest = { showAddCategoryDialog = false },
+            onDismissRequest = { showManageCategoriesDialog = false },
             title = {
                 Text(
-                    text = "افزودن دسته‌بندی جدید",
+                    text = "مدیریت دسته‌بندی‌ها",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
+                    color = Color(0xFFF1F5F9),
                     textAlign = TextAlign.Right,
                     modifier = Modifier.fillMaxWidth()
                 )
             },
+            containerColor = Color(0xFF1E293B), // Premium Slate Dark Blue background
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 380.dp)
+                ) {
                     Text(
-                        text = "نامی برای دسته‌بندی و طبقه‌بندی کتاب‌های پی‌دی‌اف بنویسید:",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "دسته‌بندی‌های شما در این بخش قابل ویرایش و حذف هستند. در صورت حذف دسته‌بندی، کتاب‌های متعلق به آن به دسته‌بندی «سایر» منتقل خواهند شد.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8),
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Right
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = categoryNameInput,
-                        onValueChange = { categoryNameInput = it },
-                        placeholder = { Text("مثال: دانشگاه، کاری، رمان") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (categoryNameInput.isNotBlank()) {
-                            viewModel.addCategory(categoryNameInput.trim())
-                            showAddCategoryDialog = false
-                            Toast.makeText(context, "دسته‌بندی جدید اضافه شد.", Toast.LENGTH_SHORT).show()
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // List of categories scrollable
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val defaultCategories = listOf("شعر و ادبیات", "داستان و رمان", "آموزشی و درسی", "سایر")
+                        categories.forEach { category ->
+                            val isDefault = category.name in defaultCategories
+                            val isEditing = editingCategoryId == category.id
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    if (isEditing) {
+                                        OutlinedTextField(
+                                            value = editingCategoryName,
+                                            onValueChange = { editingCategoryName = it },
+                                            singleLine = true,
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                unfocusedTextColor = Color.White,
+                                                focusedTextColor = Color.White,
+                                                focusedBorderColor = Color(0xFF3B82F6),
+                                                unfocusedBorderColor = Color.Gray
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(54.dp)
+                                                .padding(end = 8.dp)
+                                        )
+                                        IconButton(
+                                            onClick = {
+                                                if (editingCategoryName.isNotBlank() && editingCategoryName.trim() !in defaultCategories) {
+                                                    viewModel.renameCategoryAndRemapBooks(category, editingCategoryName.trim())
+                                                    editingCategoryId = null
+                                                    Toast.makeText(context, "نام دسته‌بندی با موفقیت تغییر کرد.", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        ) {
+                                            Icon(Icons.Default.Check, contentDescription = "تایید", tint = Color.Green)
+                                        }
+                                        IconButton(onClick = { editingCategoryId = null }) {
+                                            Icon(Icons.Default.Close, contentDescription = "لغو", tint = Color.Red)
+                                        }
+                                    } else {
+                                        Text(
+                                            text = category.name + (if (isDefault) " (پیش‌فرض)" else ""),
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.weight(1f),
+                                            textAlign = TextAlign.Right
+                                        )
+
+                                        if (!isDefault) {
+                                            // Edit Button
+                                            IconButton(
+                                                onClick = {
+                                                    editingCategoryId = category.id
+                                                    editingCategoryName = category.name
+                                                }
+                                            ) {
+                                                Icon(Icons.Default.Edit, contentDescription = "ویرایش نام", tint = Color(0xFF60A5FA))
+                                            }
+
+                                            // Delete Button
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.deleteCategoryAndRemapBooks(category)
+                                                    Toast.makeText(context, "دسته‌بندی ${category.name} حذف شد.", Toast.LENGTH_SHORT).show()
+                                                }
+                                            ) {
+                                                Icon(Icons.Default.Delete, contentDescription = "حذف دسته‌بندی", tint = Color(0xFFF87171))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                ) {
-                    Text("ذخیره")
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(color = Color(0xFF334155))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Quick Add category input at the bottom
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = categoryNameInput,
+                            onValueChange = { categoryNameInput = it },
+                            placeholder = { Text("نام دسته‌بندی جدید...", color = Color.Gray, fontSize = 13.sp) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedTextColor = Color.White,
+                                focusedTextColor = Color.White,
+                                focusedBorderColor = Color(0xFF3B82F6),
+                                unfocusedBorderColor = Color.Gray
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                                .padding(end = 8.dp)
+                        )
+                        Button(
+                            onClick = {
+                                if (categoryNameInput.isNotBlank()) {
+                                    val name = categoryNameInput.trim()
+                                    viewModel.addCategory(name)
+                                    categoryNameInput = ""
+                                    Toast.makeText(context, "دسته‌بندی $name اضافه شد.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                        ) {
+                            Text("افزودن", color = Color.White)
+                        }
+                    }
                 }
             },
+            confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showAddCategoryDialog = false }) {
-                    Text("انصراف")
+                TextButton(
+                    onClick = { showManageCategoriesDialog = false }
+                ) {
+                    Text("بستن", color = Color(0xFF94A3B8))
                 }
             }
         )
@@ -645,10 +846,10 @@ fun BookShelfItem(
 
     // Dynamic color container configs based on category to give the premium catalog feeling
     val (iconBg, iconFg) = when (book.category) {
-        "شعر و ادبیات" -> Pair(Color(0xFFEADDFF), Color(0xFF21005D))
-        "داستان و رمان" -> Pair(Color(0xFFFFDAD6), Color(0xFF410002))
-        "آموزشی و درسی" -> Pair(Color(0xFFD1E4FF), Color(0xFF001D35))
-        else -> Pair(Color(0xFFE2F1E8), Color(0xFF1A3020))
+        "شعر و ادبیات" -> Pair(Color(0xFF312E81), Color(0xFFC7D2FE)) // indigo deep variations
+        "داستان و رمان" -> Pair(Color(0xFF881337), Color(0xFFFECDD3)) // rose variations
+        "آموزشی و درسی" -> Pair(Color(0xFF1E3A8A), Color(0xFFBFDBFE)) // blue variations
+        else -> Pair(Color(0xFF334155), Color(0xFFE2E8F0)) // slate variations
     }
 
     val iconImage = when (book.category) {
@@ -665,10 +866,10 @@ fun BookShelfItem(
             .testTag("book_card_${book.id}"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8F9FA)
+            containerColor = Color(0xFF1E293B) // slate dark card background
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFECEFF1))
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)) // clean premium edge border
     ) {
         Column(
             modifier = Modifier
@@ -705,17 +906,18 @@ fun BookShelfItem(
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = "کنترل بیشتر",
-                            tint = Color(0xFF74777F),
+                            tint = Color(0xFF94A3B8),
                             modifier = Modifier.size(20.dp)
                         )
                     }
 
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(Color(0xFF1E293B))
                     ) {
                         DropdownMenuItem(
-                            text = { Text("مطالعه کتاب") },
+                            text = { Text("مطالعه کتاب", color = Color.White) },
                             onClick = {
                                 showMenu = false
                                 onOpen()
@@ -724,13 +926,16 @@ fun BookShelfItem(
                                 Icon(
                                     Icons.Default.MenuBook, 
                                     contentDescription = null,
-                                    tint = Color(0xFF1B1B1F)
+                                    tint = Color(0xFF94A3B8)
                                 ) 
                             }
                         )
                         DropdownMenuItem(
                             text = {
-                                Text(if (book.isFavorite) "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها")
+                                Text(
+                                    text = if (book.isFavorite) "حذف از علاقه‌مندی‌ها" else "افزودن به علاقه‌مندی‌ها",
+                                    color = Color.White
+                                )
                             },
                             onClick = {
                                 showMenu = false
@@ -740,11 +945,11 @@ fun BookShelfItem(
                                 Icon(
                                     imageVector = if (book.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                     contentDescription = null,
-                                    tint = if (book.isFavorite) Color.Red else Color(0xFF1B1B1F)
+                                    tint = if (book.isFavorite) Color.Red else Color(0xFF94A3B8)
                                 )
                             }
                         )
-                        HorizontalDivider()
+                        HorizontalDivider(color = Color(0xFF334155))
                         DropdownMenuItem(
                             text = { Text("حذف کتاب", color = MaterialTheme.colorScheme.error) },
                             onClick = {
@@ -773,7 +978,7 @@ fun BookShelfItem(
                     fontSize = 15.sp,
                     lineHeight = 20.sp
                 ),
-                color = Color(0xFF1B1B1F),
+                color = Color(0xFFF1F5F9), // Silver White
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
@@ -785,7 +990,7 @@ fun BookShelfItem(
             Box(
                 modifier = Modifier
                     .background(
-                        iconBg.copy(alpha = 0.5f),
+                        iconBg.copy(alpha = 0.4f),
                         RoundedCornerShape(8.dp)
                     )
                     .padding(horizontal = 10.dp, vertical = 4.dp)
@@ -817,20 +1022,20 @@ fun BookShelfItem(
                         text = "صفحه ${book.lastPageRead + 1} از ${book.totalPages}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF74777F)
+                        color = Color(0xFF94A3B8)
                     )
                     Text(
                         text = "${(progressPercent * 100).toInt()}%",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF001D35)
+                        color = Color(0xFF60A5FA)
                     )
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 LinearProgressIndicator(
                     progress = { progressPercent },
-                    color = Color(0xFF001D35),
-                    trackColor = Color(0xFFE1E2EC),
+                    color = Color(0xFF3B82F6),
+                    trackColor = Color(0xFF334155),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
@@ -858,7 +1063,7 @@ fun BookShelfItem(
                     text = formatFileSize(book.fileSize),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF74777F).copy(alpha = 0.8f)
+                    color = Color(0xFF94A3B8).copy(alpha = 0.8f)
                 )
             }
         }

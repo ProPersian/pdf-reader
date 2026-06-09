@@ -30,6 +30,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
+enum class SortOption(val displayName: String) {
+    LAST_VISITED("آخرین بازدید"),
+    MOST_PAGES("بیشترین صفحه"),
+    HIGHEST_SIZE("بیشترین حجم"),
+    BY_FOLDER("به ترتیب پوشه")
+}
+
 class BookViewModel(private val repository: BookRepository) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -37,6 +44,9 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
 
     private val _selectedCategory = MutableStateFlow("همه")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
+
+    private val _sortOption = MutableStateFlow(SortOption.LAST_VISITED)
+    val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()
 
     // Observable states from DB
     val dbCategories: StateFlow<List<Category>> = repository.allCategories
@@ -48,12 +58,24 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
     val filteredBooks: StateFlow<List<PdfBook>> = combine(
         _dbBooks,
         _selectedCategory,
-        _searchQuery
-    ) { books, category, query ->
-        books.filter { book ->
-            val matchesCategory = (category == "همه") || (book.category == category)
+        _searchQuery,
+        _sortOption
+    ) { books, category, query, sort ->
+        val filtered = books.filter { book ->
+            val matchesCategory = when (category) {
+                "همه" -> true
+                "★ علاقه‌مندی‌ها" -> book.isFavorite
+                else -> book.category == category
+            }
             val matchesSearch = query.isEmpty() || book.title.contains(query, ignoreCase = true)
             matchesCategory && matchesSearch
+        }.distinctBy { it.filePath } // Prevent duplicates on UI!
+
+        when (sort) {
+            SortOption.LAST_VISITED -> filtered.sortedByDescending { it.addedDate }
+            SortOption.MOST_PAGES -> filtered.sortedByDescending { it.totalPages }
+            SortOption.HIGHEST_SIZE -> filtered.sortedByDescending { it.fileSize }
+            SortOption.BY_FOLDER -> filtered.sortedWith(compareBy({ it.category }, { it.title }))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -84,12 +106,16 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
     private val _isPageLoading = MutableStateFlow(false)
     val isPageLoading: StateFlow<Boolean> = _isPageLoading.asStateFlow()
 
+    private var hasPrepopulated = false
+
     fun prepopulateSampleBooksIfEmpty(context: Context) {
+        if (hasPrepopulated) return
+        hasPrepopulated = true
         viewModelScope.launch {
-            _dbBooks.collect { books ->
-                if (books.isEmpty()) {
-                    generateSampleLiteratureBooks(context)
-                }
+            // Read list directly to prevent ongoing collection triggers
+            val current = _dbBooks.value
+            if (current.isEmpty()) {
+                generateSampleLiteratureBooks(context)
             }
         }
     }
@@ -245,15 +271,46 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
         _isVerticalLayout.value = vertical
     }
 
+    fun setSortOption(option: SortOption) {
+        _sortOption.value = option
+    }
+
+    fun renameCategoryAndRemapBooks(category: Category, newName: String) {
+        if (newName.isBlank() || category.name == newName) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                // Update books using this category first
+                repository.updateBookCategories(category.name, newName)
+                // Rename the category itself
+                repository.renameCategory(category.id, newName)
+            }
+        }
+    }
+
+    fun deleteCategoryAndRemapBooks(category: Category) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                // Move books in this category to "سایر" (Other) category so they aren't orphanized
+                repository.updateBookCategories(category.name, "سایر")
+                // Delete category
+                repository.deleteCategoryById(category.id)
+            }
+        }
+    }
+
     fun openBook(context: Context, book: PdfBook) {
         viewModelScope.launch {
             closeRenderer() // clear previous opened book
-            _activeBook.value = book
-            _currentPage.value = book.lastPageRead
+            
+            // To update last opened date (آخرین بازدید), copy and update book
+            val updatedBook = book.copy(addedDate = System.currentTimeMillis())
+            _activeBook.value = updatedBook
+            _currentPage.value = updatedBook.lastPageRead
 
             withContext(Dispatchers.IO) {
                 try {
-                    val file = File(book.filePath)
+                    repository.updateBook(updatedBook)
+                    val file = File(updatedBook.filePath)
                     if (file.exists()) {
                         val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
                         currentFileDescriptor = fd
@@ -262,14 +319,40 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
                         _activeBookPages.value = renderer.pageCount
                         
                         // Load initial page bitmap
-                        loadPageBitmap(book.lastPageRead)
+                        loadPageBitmap(updatedBook.lastPageRead)
                     } else {
-                        Log.e("BookViewModel", "File does not exist: ${book.filePath}")
+                        Log.e("BookViewModel", "File does not exist: ${updatedBook.filePath}")
                     }
                 } catch (e: Exception) {
                     Log.e("BookViewModel", "Failed to load PDF: ${e.message}")
                 }
             }
+        }
+    }
+
+    suspend fun renderPageToBitmap(pageIndex: Int): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            currentRenderer?.let { renderer ->
+                if (pageIndex in 0 until renderer.pageCount) {
+                    val page = renderer.openPage(pageIndex)
+                    
+                    // Scale page display proportionally for high crispness
+                    val densityScale = 1.6f
+                    val width = (page.width * densityScale).toInt()
+                    val height = (page.height * densityScale).toInt()
+                    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    
+                    val canvas = Canvas(bmp)
+                    canvas.drawColor(Color.WHITE)
+                    
+                    page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    page.close()
+                    bmp
+                } else null
+            }
+        } catch (e: Exception) {
+            Log.e("BookViewModel", "Error rendering continuous page $pageIndex: ${e.message}")
+            null
         }
     }
 
