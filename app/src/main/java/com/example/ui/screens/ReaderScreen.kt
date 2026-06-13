@@ -323,7 +323,7 @@ fun ReaderScreen(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(top = 10.dp, bottom = 100.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
                         items(totalPages) { pageIndex ->
                             PdfPageRowItem(
@@ -510,6 +510,8 @@ fun ReaderScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                        var targetPage by remember(currentPage) { mutableStateOf(currentPage.toFloat()) }
+
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -537,7 +539,7 @@ fun ReaderScreen(
 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "صفحه ${currentPage + 1} از $totalPages",
+                                        text = "صفحه ${(targetPage.toInt() + 1).coerceIn(1, totalPages)} از $totalPages",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 17.sp
@@ -577,8 +579,11 @@ fun ReaderScreen(
                             // Fast scrubber Scroller
                             if (totalPages > 1) {
                                 Slider(
-                                    value = currentPage.toFloat(),
-                                    onValueChange = { viewModel.changePage(it.toInt()) },
+                                    value = targetPage,
+                                    onValueChange = { targetPage = it },
+                                    onValueChangeFinished = {
+                                        viewModel.changePage(targetPage.toInt())
+                                    },
                                     valueRange = 0f..(totalPages - 1).toFloat(),
                                     steps = if (totalPages > 2) totalPages - 2 else 0,
                                     colors = SliderDefaults.colors(
@@ -690,7 +695,6 @@ fun PdfPageRowItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
             .onSizeChanged { itemSize = it }
             .pointerInput(Unit) {
                 detectTapGestures(
@@ -722,8 +726,8 @@ fun PdfPageRowItem(
                 }
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(2.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = androidx.compose.ui.graphics.RectangleShape,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
@@ -747,9 +751,7 @@ fun PdfPageRowItem(
                     bitmap = pageBitmap!!.asImageBitmap(),
                     contentDescription = "صفحه ${pageIndex + 1}",
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .fillMaxWidth(),
                     contentScale = ContentScale.FillWidth
                 )
             } else {
