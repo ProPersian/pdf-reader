@@ -56,6 +56,7 @@ fun HomeScreen(
     val books by viewModel.filteredBooks.collectAsState()
     val categories by viewModel.dbCategories.collectAsState()
     val notes by viewModel.allNotes.collectAsState()
+    val allDbBooks by viewModel.dbBooks.collectAsState()
 
     var showAddBookDialog by remember { mutableStateOf(false) }
     var showManageCategoriesDialog by remember { mutableStateOf(false) }
@@ -64,6 +65,7 @@ fun HomeScreen(
     var activeSubPage by remember { mutableStateOf("bookshelf") } // "bookshelf" or "notes"
     val selectedSamplePresets = remember { mutableStateMapOf("hafez" to true, "prince" to true, "javascript" to false) }
     var bookToChangeCategory by remember { mutableStateOf<com.example.data.model.PdfBook?>(null) }
+    var categoryForBookAssociationDetails by remember { mutableStateOf<Category?>(null) }
 
     // State for book import form
     var bookTitleInput by remember { mutableStateOf("") }
@@ -741,193 +743,9 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     if (searchQuery.isEmpty()) {
-                        // Action card with checklist to add books
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    Text(
-                                        text = "بارگذاری کتاب‌های نمونه پیشنهادی",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = Color(0xFFF1F5F9),
-                                        textAlign = TextAlign.Right
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = null,
-                                        tint = Color(0xFFF59E0B)
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.height(6.dp))
-                                
-                                Text(
-                                    text = "کتاب‌های باکیفیت و استاندارد زیر را برای آشنایی با ابزارهای خوانش، تیک زده و اضافه کنید:",
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF94A3B8),
-                                    textAlign = TextAlign.Right,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                
-                                Spacer(modifier = Modifier.height(14.dp))
-                                
-                                // Preset Item 1
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { selectedSamplePresets["hafez"] = !(selectedSamplePresets["hafez"] ?: false) }
-                                        .padding(vertical = 4.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "شعر و ادبیات (حافظ شیرازی)",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF60A5FA)
-                                    )
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "غزلیات حافظ شیرازی",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color.White
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Checkbox(
-                                            checked = selectedSamplePresets["hafez"] ?: false,
-                                            onCheckedChange = { selectedSamplePresets["hafez"] = it },
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = Color(0xFF3B82F6),
-                                                uncheckedColor = Color(0xFF475569)
-                                            )
-                                        )
-                                    }
-                                }
-
-                                // Preset Item 2
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { selectedSamplePresets["prince"] = !(selectedSamplePresets["prince"] ?: false) }
-                                        .padding(vertical = 4.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "داستان و رمان (به قلم اگزوپری)",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF34D399)
-                                    )
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "داستان شازده کوچولو",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color.White
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Checkbox(
-                                            checked = selectedSamplePresets["prince"] ?: false,
-                                            onCheckedChange = { selectedSamplePresets["prince"] = it },
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = Color(0xFF3B82F6),
-                                                uncheckedColor = Color(0xFF475569)
-                                            )
-                                        )
-                                    }
-                                }
-
-                                // Preset Item 3
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable { selectedSamplePresets["javascript"] = !(selectedSamplePresets["javascript"] ?: false) }
-                                        .padding(vertical = 4.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "آموزشی و درسی",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFFF59E0B)
-                                    )
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "راهنمای سریع جاوااسکریپت",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color.White
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Checkbox(
-                                            checked = selectedSamplePresets["javascript"] ?: false,
-                                            onCheckedChange = { selectedSamplePresets["javascript"] = it },
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = Color(0xFF3B82F6),
-                                                uncheckedColor = Color(0xFF475569)
-                                            )
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                var isImportingPreset by remember { mutableStateOf(false) }
-
-                                Button(
-                                    onClick = {
-                                        val selectedIds = selectedSamplePresets.filter { it.value }.map { it.key }
-                                        if (selectedIds.isEmpty()) {
-                                            Toast.makeText(context, "لطفاً حداقل یک کتاب را برای بارگذاری انتخاب کنید.", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            isImportingPreset = true
-                                            viewModel.importSelectedSampleBooks(context, selectedIds) {
-                                                isImportingPreset = false
-                                                Toast.makeText(context, "کتاب‌های انتخاب شده به قفسه کتابخانه شما اضافه شدند!", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
-                                    enabled = !isImportingPreset,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(45.dp)
-                                ) {
-                                    if (isImportingPreset) {
-                                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                    } else {
-                                         Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                                         Spacer(modifier = Modifier.width(8.dp))
-                                         Text("بارگذاری کتاب‌های انتخاب شده", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
                         OutlinedButton(
                             onClick = {
                                 bookTitleInput = ""
@@ -1072,6 +890,19 @@ fun HomeScreen(
                                             textAlign = TextAlign.Right
                                         )
 
+                                        // Associate Books Button
+                                        IconButton(
+                                            onClick = {
+                                                categoryForBookAssociationDetails = category
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LibraryBooks,
+                                                contentDescription = "انتخاب کتاب‌ها",
+                                                tint = Color(0xFF10B981)
+                                            )
+                                        }
+
                                         // Edit Button
                                         IconButton(
                                             onClick = {
@@ -1144,6 +975,122 @@ fun HomeScreen(
                     onClick = { showManageCategoriesDialog = false }
                 ) {
                     Text("بستن", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
+    // dialog: Book Association checklist for Category
+    if (categoryForBookAssociationDetails != null) {
+        val targetCategory = categoryForBookAssociationDetails!!
+        
+        AlertDialog(
+            onDismissRequest = { categoryForBookAssociationDetails = null },
+            title = {
+                Text(
+                    text = "انتخاب کتاب‌ها برای «${targetCategory.name}»",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = Color(0xFFF1F5F9),
+                    textAlign = TextAlign.Right,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = Color(0xFF1E293B),
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "کتاب‌هایی را که مایلید در دسته‌بندی «${targetCategory.name}» باشند علامت بزنید:",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8),
+                        textAlign = TextAlign.Right,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (allDbBooks.isEmpty()) {
+                        Text(
+                            text = "هیچ کتابی در کتابخانه وجود ندارد. ابتدا فایلی بارگذاری کنید.",
+                            fontSize = 13.sp,
+                            color = Color(0xFFF87171),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 280.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            allDbBooks.forEach { book ->
+                                val isInThisCategory = book.category == targetCategory.name
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isInThisCategory) Color(0xFF1E3A8A) else Color(0xFF0F172A))
+                                        .clickable {
+                                            val nextCategory = if (isInThisCategory) "سایر" else targetCategory.name
+                                            viewModel.changeBookCategory(book, nextCategory)
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    // Left side: current category or label
+                                    Text(
+                                        text = if (isInThisCategory) "در این دسته" else book.category,
+                                        fontSize = 10.sp,
+                                        color = if (isInThisCategory) Color(0xFF93C5FD) else Color(0xFF64748B),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    
+                                    // Right side: Checkbox and title
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.End,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = book.title,
+                                            color = Color.White,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isInThisCategory) FontWeight.Bold else FontWeight.Normal,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false),
+                                            textAlign = TextAlign.Right
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Checkbox(
+                                            checked = isInThisCategory,
+                                            onCheckedChange = { isChecked ->
+                                                val nextCategory = if (isChecked) targetCategory.name else "سایر"
+                                                viewModel.changeBookCategory(book, nextCategory)
+                                            },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = Color(0xFF3B82F6),
+                                                uncheckedColor = Color(0xFF475569)
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { categoryForBookAssociationDetails = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                ) {
+                    Text("تایید", color = Color.White)
                 }
             }
         )

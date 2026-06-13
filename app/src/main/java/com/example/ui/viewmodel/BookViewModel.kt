@@ -58,6 +58,8 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
     private val _dbBooks = repository.allBooks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val dbBooks: StateFlow<List<PdfBook>> = _dbBooks
+
     val filteredBooks: StateFlow<List<PdfBook>> = combine(
         _dbBooks,
         _selectedCategory,
@@ -89,7 +91,7 @@ class BookViewModel(private val repository: BookRepository) : ViewModel() {
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
-    private val _readingTheme = MutableStateFlow("Sepia") // Light, Sepia, Dark
+    private val _readingTheme = MutableStateFlow("SoftBlue") // Light, SoftBlue, Dark
     val readingTheme: StateFlow<String> = _readingTheme.asStateFlow()
 
     private val _isVerticalLayout = MutableStateFlow(false) // Horizontal pager vs Vertical list

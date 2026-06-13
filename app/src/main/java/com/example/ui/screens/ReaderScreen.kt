@@ -130,10 +130,10 @@ fun ReaderScreen(
 
     // Reading Paper Theme Custom styling variables
     val (schemeBackground, schemeCard, schemeText) = when (readingTheme) {
-        "Sepia" -> Triple(
-            Color(0xFFFAF2E1), // Soft old cream yellow background
-            Color(0xFFFFFDF5), // Inside page card warm white
-            Color(0xFF3C2F15)  // Coffee brown text color
+        "SoftBlue" -> Triple(
+            Color(0xFFEFF6FF), // Soft calming light blue background
+            Color(0xFFFFFFFF), // Inside page card premium white
+            Color(0xFF1E293B)  // Dark slate text color
         )
         "Dark" -> Triple(
             Color(0xFF121212), // Deep black background
@@ -253,11 +253,11 @@ fun ReaderScreen(
                                 )
                             }
 
-                            // Toggle theme (Light -> Sepia -> Dark)
+                            // Toggle theme (Light -> SoftBlue -> Dark)
                             IconButton(onClick = {
                                 val nextTheme = when (readingTheme) {
-                                    "Light" -> "Sepia"
-                                    "Sepia" -> "Dark"
+                                    "Light" -> "SoftBlue"
+                                    "SoftBlue" -> "Dark"
                                     else -> "Light"
                                 }
                                 viewModel.setReadingTheme(nextTheme)
@@ -265,7 +265,7 @@ fun ReaderScreen(
                                 Icon(
                                     imageVector = when (readingTheme) {
                                         "Light" -> Icons.Filled.LightMode
-                                        "Sepia" -> Icons.Filled.Palette
+                                        "SoftBlue" -> Icons.Filled.Palette
                                         else -> Icons.Filled.DarkMode
                                     },
                                     contentDescription = "تم صفحه",
@@ -304,6 +304,12 @@ fun ReaderScreen(
                     }
                 }
 
+                LaunchedEffect(currentPage) {
+                    if (listState.firstVisibleItemIndex != currentPage) {
+                        listState.scrollToItem(currentPage)
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -317,7 +323,7 @@ fun ReaderScreen(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(top = 10.dp, bottom = 100.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(totalPages) { pageIndex ->
                             PdfPageRowItem(
@@ -684,7 +690,7 @@ fun PdfPageRowItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 4.dp)
             .onSizeChanged { itemSize = it }
             .pointerInput(Unit) {
                 detectTapGestures(
@@ -709,15 +715,15 @@ fun PdfPageRowItem(
                         offset = Offset(
                             x = (offset.x + pan.x).coerceIn(-maxActiveX, maxActiveX),
                             y = (offset.y + pan.y).coerceIn(-maxActiveY, maxActiveY)
-                        )
+                         )
                     }
                 } else {
                     offset = Offset.Zero
                 }
             },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        shape = RoundedCornerShape(2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Box(
             modifier = Modifier
