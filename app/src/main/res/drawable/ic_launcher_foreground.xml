@@ -4,40 +4,26 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
-    <!-- Styled Open Book Foreground Shadow -->
-    <path
-        android:fillColor="#1A000000"
-        android:pathData="M54,26 C68,26 82,31 92,34 L92,76 C82,73 68,68 54,68 C40,68 26,73 16,76 L16,34 C26,31 40,26 54,26 Z" />
-        
-    <!-- Main Open Book Left & Right Covers -->
-    <path
-        android:fillColor="#ECEFF1"
-        android:pathData="M54,28 C67,28 80,32 90,35 L90,73 C80,70 67,66 54,66 C41,66 28,70 18,73 L18,35 C28,32 41,28 54,28 Z" />
 
-    <!-- Open Book Pages Left Side (Warm white) -->
+    <!-- Center Bookmark Ribbon in brand blue -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M19,36 C29,33 41,29 53,29 L53,65 C41,65 29,69 19,72 Z" />
+        android:fillColor="#3B82F6"
+        android:pathData="M52 30h4v38h-4z" />
 
-    <!-- Open Book Pages Right Side (Subtle page shadow) -->
+    <!-- Minimalist Left Page Curve -->
     <path
-        android:fillColor="#F5F5F5"
-        android:pathData="M89,36 C79,33 67,29 55,29 L55,65 C67,65 79,69 89,72 Z" />
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 28,64 C 36,58 44,58 50,62 V 40 C 44,36 36,36 28,42 Z" />
 
-    <!-- Book Spine / Center Bookmark Ribbon (Elegant Gold) -->
+    <!-- Minimalist Right Page Curve -->
     <path
-        android:fillColor="#FFD54F"
-        android:pathData="M53,24 L55,24 L55,75 L54,77 L53,75 Z" />
-
-    <!-- Left Page Lines/Detailing -->
-    <path
-        android:fillColor="#CFD8DC"
-        android:pathData="M24,42 H45 V44 H24 Z M24,48 H45 V50 H24 Z M24,54 H38 V56 H24 Z" />
-
-    <!-- Right Page Lines/Detailing -->
-    <path
-        android:fillColor="#CFD8DC"
-        android:pathData="M63,42 H84 V44 H63 Z M63,48 H84 V50 H63 Z M63,54 H77 V56 H63 Z" />
-        
+        android:strokeColor="#E2E8F0"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 80,64 C 72,58 64,58 58,62 V 40 C 64,36 72,36 80,42 Z" />
 </vector>
+
